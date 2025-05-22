@@ -5,20 +5,15 @@ import importlib.util
 import io
 from test_pickle_usage import PurePythonPickleTester
 
-# 屏蔽 _pickle C模块，强制用纯Python实现
 sys.modules['_pickle'] = None
-# 清除之前可能的缓存，确保重新加载纯 Python pickle 模块
 if 'pickle' in sys.modules:
     del sys.modules['pickle']
-# 动态加载纯Python pickle
 spec = importlib.util.spec_from_file_location("pickle", "./std_pickle/pickle.py")
 pickle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pickle)
 
 def sha256_digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-# 自定义测试类和对象
 
 class SimpleClass:
     def __init__(self, x, y):
@@ -61,12 +56,10 @@ class ExternalObject:
     def __repr__(self):
         return f"ExternalObject({self.external_id!r})"
 
-# 模拟外部持久化存储
 external_storage = {
     "obj_123": ExternalObject("obj_123")
 }
 
-# 自定义Pickler/Unpickler 触发 persistent_id/load
 class MyPickler(pickle.Pickler):
     def persistent_id(self, obj):
         if isinstance(obj, ExternalObject):
@@ -92,16 +85,15 @@ def test_pickle_coverage():
         SimpleClass(10, 20),
         ReduceClass("example"),
         SlotClass(5, 6),
-        ExternalObject("obj_123"),  # 会触发 persistent_id/load
+        ExternalObject("obj_123"), 
     ]
 
-    # 递归数据结构
     recursive_list = []
     recursive_list.append(recursive_list)
     recursive_dict = {}
     recursive_dict["self"] = recursive_dict
     recursive_set = set()
-    recursive_set.add(frozenset(recursive_set))  # 递归 frozenset 需要特殊处理，测试时可略
+    recursive_set.add(frozenset(recursive_set))  
 
     recursive_objects = [recursive_list, recursive_dict]
 
@@ -136,7 +128,7 @@ def test_pickle_coverage():
                 digest = sha256_digest(data)
                 print(f"SHA256={digest}")
                 restored = pickle.loads(data)
-                # 断言递归引用保持
+                
                 if isinstance(obj, list):
                     assert restored[0] is restored, "Recursive list not preserved"
                 elif isinstance(obj, dict):
@@ -144,7 +136,6 @@ def test_pickle_coverage():
             except Exception as e:
                 print(f"Recursive test failed: {e}")
 
-    # 异常测试：不可序列化对象
     class Unserializable:
         def __getstate__(self):
             raise RuntimeError("Can't serialize me")
@@ -159,10 +150,8 @@ def main():
     cov = coverage.Coverage(source=["std_pickle"])
     cov.start()
 
-    # 调用你原本的测试函数
     test_pickle_coverage()
 
-    # 额外调用 PurePythonPickleTester 中的测试和覆盖率收集
     tester = PurePythonPickleTester(pickle_path="./std_pickle/pickle.py")
     tester.test_unpickler_methods()
 
